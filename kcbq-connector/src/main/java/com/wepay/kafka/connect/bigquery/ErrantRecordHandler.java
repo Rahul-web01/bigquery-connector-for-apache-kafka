@@ -50,7 +50,9 @@ public class ErrantRecordHandler {
         errantRecordReporter.report(r, e);
       }
     } else {
-      logger.warn("Cannot send Records to DLQ as ErrantRecordReporter is null");
+      for (SinkRecord r : records) {
+        logErrantRecord(r, e);
+      }
     }
   }
 
@@ -62,8 +64,27 @@ public class ErrantRecordHandler {
         errantRecordReporter.report(rowToErrorEntry.getKey(), rowToErrorEntry.getValue());
       }
     } else {
-      logger.warn("Cannot send Records to DLQ as ErrantRecordReporter is null");
+      for (Map.Entry<SinkRecord, Throwable> rowToErrorEntry : rowToError.entrySet()) {
+        logErrantRecord(rowToErrorEntry.getKey(), rowToErrorEntry.getValue());
+      }
     }
+  }
+
+  /**
+   * Logs a record that could not be written and could not be sent to a DLQ because no {@link
+   * ErrantRecordReporter} is configured.
+   *
+   * @param record the record that was not written
+   * @param error the cause of the failure, may be {@code null}
+   */
+  private void logErrantRecord(SinkRecord record, Throwable error) {
+    logger.warn(
+        "Errant record was not written and no DLQ is configured: topic={}, partition={}, "
+            + "offset={}, error={}",
+        record.topic(),
+        record.kafkaPartition(),
+        record.kafkaOffset(),
+        error == null ? null : error.getMessage());
   }
 
   public ErrantRecordReporter getErrantRecordReporter() {
